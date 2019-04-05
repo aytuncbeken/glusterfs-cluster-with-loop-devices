@@ -1,0 +1,84 @@
+---
+- name: Install GlusterFS Repo
+  package:
+    name: centos-release-gluster
+    state: present
+- name: Install Epel Release
+  package:
+    name: epel-release
+    state: present 
+- name: Install GlusterFS-Server
+  package:
+    name: glusterfs-server
+    state: present
+- name: Create Empty File
+  command: "fallocate -l {{disk_size}} {{disk_image_path}}" 
+- name: Detach all loop devices
+  command: losetup -D
+- name: Loop Image as device
+  shell: losetup -fP --show "{{disk_image_path}}"
+  register: losetup_output
+- set_fact: lodevice="{{losetup_output.stdout}}"
+- name: Wait for loop device
+  wait_for: timeout=3
+- name: Format loop device
+  filesystem:
+    fstype: ext4
+    dev: "{{lodevice}}"
+
+- name: Create directory for disk mount
+  file:
+    path: "{{disk_path}}"
+    state: directory
+
+- name: Mount loop disk
+  command: "mount {{lodevice}} {{disk_path}}"
+- name: Wait for mount loop disk
+  wait_for: timeout=3
+- name: Set cron for loop device
+  cron:
+    name: "Loop image as device"
+    special_time: reboot
+    job: "/usr/sbin/losetup {{lodevice}} {{disk_image_path}} && /usr/bin/mount -t ext4 {{lodevice}} {{disk_path}} && /usr/sbin/service glusterd restart"
+
+- name: Start glusterd service
+  service:
+    name: glusterd
+    enabled: yes
+    state: started
+
+- name: Wait for service start
+  wait_for: timeout=3
+
+- name: Create GlusterFS  volume
+  gluster_volume:
+        state: present 
+        volume: "{{ gluster_cluster_volume }}"
+        bricks: "{{ gluster_cluster_bricks }}"
+        cluster: "{{ gluster_cluster_hosts }}"
+        transport: "{{ gluster_cluster_transport | default('tcp') }}"
+        replicas: "{{ gluster_cluster_replica_count | default(0) }}"
+        arbiters: "{{ gluster_cluster_arbiter_count | default(0)}}"
+        disperses: "{{ gluster_cluster_disperse_count | default(0) }}"
+        redundancies: "{{ gluster_cluster_redundancy_count | default(0) }}"
+        force: "{{ gluster_cluster_force | default('no') }}"
+        options: "{{ gluster_cluster_options | default({}) }}"
+  run_once: true
+
+- name: Create GluserFS mount directory
+  file:
+    path: "{{gluster_disk_mount_path}}"
+    state: directory
+
+- name: Mount GlusterFS Disk as directory
+  mount:
+    path: "{{gluster_disk_mount_path}}"
+    src: "{{inventory_hostname}}:/{{gluster_cluster_volume}}"
+    fstype: glusterfs
+    opts: auto
+    state: present
+
+- name: Mount All
+  command: mount -a warn=no
+
+

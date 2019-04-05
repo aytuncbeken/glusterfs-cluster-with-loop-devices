@@ -1,0 +1,9 @@
+---
+- name: Create GlusterFS with loop devices
+  hosts: glusterfs_servers
+  vars:
+    - disk_size: 10G # Size of the disk image which will be created.
+    - gluster_ansible_action: 'install'
+  roles:
+    - role: gluster-loop-cluster
+      become: yes

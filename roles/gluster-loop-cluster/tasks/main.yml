@@ -1,0 +1,10 @@
+---
+- name: Install
+  include_tasks: install.yml
+  when: gluster_ansible_action == "install"
+
+- name: Uninstall
+  include_tasks: uninstall.yml
+  when: gluster_ansible_action == "uninstall"
+
+

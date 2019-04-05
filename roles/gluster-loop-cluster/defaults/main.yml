@@ -1,0 +1,18 @@
+parent_path: /
+disk_image_name: gluster-disk.img
+disk_name: gluster-disk
+disk_image_path: "{{parent_path}}{{disk_image_name}}"
+disk_path: "{{parent_path}}{{disk_name}}"
+disk_size: 10G
+gluster_cluster_hosts: "{{groups['glusterfs_servers']}}"
+gluster_cluster_volume: "{{disk_name}}"
+gluster_cluster_replica_count: "{{ groups['glusterfs_servers'] | length }}"
+gluster_cluster_arbiter_count: 0
+gluster_cluster_disperse_count: 0
+gluster_cluster_redundancy_count: 0
+gluster_cluster_force: "yes"
+gluster_cluster_transport: "tcp"
+gluster_cluster_bricks: "{{disk_path}}/brick"
+gluster_disk_mount_directory: my-gluster-disk
+gluster_disk_mount_path: "{{parent_path}}{{gluster_disk_mount_directory}}"
+

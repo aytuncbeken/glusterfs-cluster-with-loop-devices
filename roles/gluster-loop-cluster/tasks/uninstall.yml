@@ -1,0 +1,64 @@
+---
+- name: Umount gluster disk
+  command: umount -fl "{{gluster_disk_mount_path}}" 
+  ignore_errors: yes
+ 
+- name: Wait for unmount
+  wait_for: timeout=3
+
+- name: Remove GlusterFS  volume
+  gluster_volume:
+        state: absent
+        volume: "{{ gluster_cluster_volume }}"
+        bricks: "{{ gluster_cluster_bricks }}"
+        cluster: "{{ gluster_cluster_hosts }}"
+        transport: "{{ gluster_cluster_transport | default('tcp') }}"
+        replicas: "{{ gluster_cluster_replica_count | default(0) }}"
+        arbiters: "{{ gluster_cluster_arbiter_count | default(0)}}"
+        disperses: "{{ gluster_cluster_disperse_count | default(0) }}"
+        redundancies: "{{ gluster_cluster_redundancy_count | default(0) }}"
+        force: "{{ gluster_cluster_force | default('no') }}"
+        options: "{{ gluster_cluster_options | default({}) }}"
+  run_once: true
+
+- name: Remove GluserFS mount directory
+  file:
+    path: "{{gluster_disk_mount_path}}"
+    state: absent
+
+- name: Stop and disable glusterd service
+  service:
+    name: glusterd
+    enabled: no
+    state: stopped
+
+- name: Remove cron for loop device
+  cron:
+    name: "Loop image as device"
+    state: absent
+
+- name: Unmount loop disk 
+  shell: umount -fl "{{disk_path}}"
+  register: command_result
+  retries: 10
+  delay: 1
+  until: command_result.rc != 0
+  ignore_errors: yes
+
+- name: Wait for unmount
+  wait_for: timeout=3
+
+- name: Remove directory for disk mount
+  file:
+    path: "{{disk_path}}"
+    force: yes
+    state: absent
+
+- name: Detach all loop devices
+  command: losetup -D
+
+- name: Remove Image File
+  file:
+    path: "{{disk_image_path}}"
+    state: absent
+
